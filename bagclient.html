@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blinkbag - 3D Ad Slider</title>
+    <style>
+        /* ========================================================
+          SCREEN ALIGNMENT VARIABLES
+          ========================================================
+        */
+        :root {
+            --bg-aspect-ratio: 16 / 9; 
+            --screen-top: 36.7%;       
+            --screen-left: 31%;        
+            --screen-width: 38%;       
+            --screen-height: 38%;      
+            --screen-radius: 8px;      
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color:whitesmoke;
+            color: #fff;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            /* Added some padding so it doesn't touch the edges on mobile */
+            padding: 20px; 
+        }
+
+        /* Main Scene Container */
+        .scene {
+            position: relative;
+            width: 100%;
+            max-width: 1400px; 
+            aspect-ratio: var(--bg-aspect-ratio);
+            background: white;
+            background: whitesmoke;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset;
+            /* Allow touch actions but prevent default browser horizontal swipe nav */
+            touch-action: pan-y;
+        }
+
+        /* The Bag Background */
+        .bag-background {
+            position: relative;
+            top: 0;
+            left: 0;
+            width: 100%;
+            display: block;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+            background-color: transparent; /* Removed blue background for cleaner look */
+            
+            background-image: url('https://static.wixstatic.com/media/bcb9cf_580053b4207848b3aa34a8faba2e8407~mv2.png'); 
+            background-size: contain;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* The Slider Wrapper positioned perfectly over the bag's screen */
+        .slider-wrapper {
+            position: absolute;
+            top: var(--screen-top);
+            left: var(--screen-left);
+            width: var(--screen-width);
+            height: var(--screen-height);
+            z-index: 5;
+            perspective: 1200px;
+            transform-style: preserve-3d;
+        }
+
+        /* Glass bezel effect to make it look inset into the bag */
+        .screen-bezel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%; /* Changed from 300px to 100% to fix overflow on mobile */
+            border-radius: var(--screen-radius);
+            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.9), inset 0 0 2px rgba(251, 251, 250, 0.836);
+            z-index: 20; 
+            pointer-events: none;
+            overflow: hidden; 
+        }
+
+        /* Glossy Shine overlay on the screen */
+        .screen-bezel::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg);
+            animation: glossShine 3s infinite;
+            z-index: 21;
+        }
+
+        @keyframes glossShine {
+            0% { left: -150%; }
+            50% { left: 250%; }
+            100% { left: 250%; }
+        }
+
+        /* The 3D Slides */
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: var(--screen-radius);
+            background-color: #111;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), 
+                        opacity 0.6s cubic-bezier(0.2, 0.8, 0.2, 1),
+                        filter 0.6s ease;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            will-change: transform, opacity;
+            cursor: pointer;
+        }
+
+        .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            opacity: 0.6;
+        }
+
+        /* Mock Ad Content Overlay - Responsive padding & fonts */
+        .ad-content {
+            position: relative;
+            z-index: 2;
+            padding: 8%;
+            height: 120%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 60%);
+        }
+
+        /* Using clamp() for fully fluid responsive text */
+        .ad-content h2 {
+            font-size: clamp(14px, 2.5vw, 36px); 
+            font-weight: 800;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            line-height: 1.1;
+        }
+
+        .ad-content p {
+            font-size: clamp(10px, 1.2vw, 18px);
+            color: #ddd;
+            font-weight: 500;
+        }
+        
+        /* Custom Ad Colors for variety */
+        .slide[data-ad="burger"] img { opacity: 0.8; }
+        .slide[data-ad="burger"] .ad-content h2 { color: #ffb100; }
+        
+        .slide[data-ad="fashion"] img { opacity: 0.9; }
+        .slide[data-ad="fashion"] .ad-content h2 { color: #ffffff; }
+
+        .slide[data-ad="tech"] img { opacity: 0.9; }
+        .slide[data-ad="tech"] .ad-content h2 { color: #00e5ff; }
+
+        .slide[data-ad="grocery"] img { opacity: 0.7; }
+        .slide[data-ad="grocery"] .ad-content h2 { color: #4caf50; }
+
+        /* Controls */
+        .controls {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+            z-index: 50;
+        }
+
+        .btn {
+            background: #222; 
+            border: 1px solid rgba(0, 0, 0, 0.3);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .btn:hover {
+            background: #000;
+            transform: scale(1.05);
+        }
+
+        /* Media Queries for Tablets and Mobile */
+        @media (max-width: 768px) {
+            .slider-wrapper {
+                perspective: 800px; /* Reduce 3D extremity on smaller screens */
+            }
+            .controls {
+                margin-top: 15px;
+                gap: 15px;
+            }
+            .btn {
+                padding: 10px 20px;
+                font-size: 12px;
+            }
+            .ad-content h2{
+                padding: 10%; /* Increase relative padding on mobile */
+                font-size: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scene">
+        <div class="bag-background"></div>
+        
+        <div class="slider-wrapper">
+            <div class="screen-bezel"></div>
+
+            <!-- Ad Slides -->
+            <div class="slide" data-ad="fashion">
+                <img src="https://static.wixstatic.com/media/bcb9cf_c70d8ff61e3f48afbdf07b357e698bb2~mv2.avif" alt="Fashion Ad">
+                <div class="ad-content">
+                    <h2>KFC</h2>
+                   
+                </div>
+            </div>
+
+            <div class="slide" data-ad="tech">
+                <img src="https://static.wixstatic.com/media/bcb9cf_003eef139c4341529a7e91913068de07~mv2.avif">
+                <div class="ad-content">
+                    <h2>Gaming Event</h2>
+                  
+                </div>
+            </div>
+
+            <div class="slide" data-ad="burger">
+                <img src="https://static.wixstatic.com/media/bcb9cf_9026c1f1cfa24aa68d6b76061b095386~mv2.avif" alt="Blinkbag Ad">
+                <div class="ad-content">
+                    <h2>Juicy Burgers</h2>
+                   
+                </div>
+            </div>
+
+            <div class="slide" data-ad="grocery">
+                <img src="https://static.wixstatic.com/media/bcb9cf_278bad514dea4846b276788f8193846a~mv2.avif" alt="Blinkbag Ad">
+                <div class="ad-content">
+                    <h2>Exclusive Prada</h2>
+                  
+                </div>
+            </div>
+
+            <div class="slide" data-ad="service">
+                <img src="https://static.wixstatic.com/media/bcb9cf_88c7131aabca4167aec61fcddb7e7c9c~mv2.avif" alt="Blinkbag Ad">
+                <div class="ad-content">
+                    <h2 style="color: #fff;">Pizza Posto</h2>
+                 
+                </div>
+            </div>
+            
+            <div class="slide" data-ad="coffee">
+                <img src="https://static.wixstatic.com/media/bcb9cf_cb8f140dbcb24791bf7060ee25bc8d97~mv2.avif" alt="Blinkbag Ad">
+                <div class="ad-content">
+                    <h2 style="color: #e2c08d;">Artisan-Start Your Day</h2>
+                  
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn" id="prevBtn">❮ Prev</button>
+        <button class="btn" id="nextBtn"> Next ❯</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const slides = document.querySelectorAll('.slide');
+            let currentIndex = 2; // Start in the middle
+            let autoplayInterval;
+
+            function updateSlider() {
+                const total = slides.length;
+                const isMobile = window.innerWidth <= 768; // Check for mobile breakpoint
+                
+                slides.forEach((slide, i) => {
+                    // Calculate relative offset considering wrap-around for infinite loop
+                    let offset = i - currentIndex;
+                    
+                    if (offset > Math.floor(total / 2)) offset -= total;
+                    if (offset < -Math.floor(total / 2)) offset += total;
+
+                    const absOffset = Math.abs(offset);
+                    const direction = Math.sign(offset);
+
+                    let translateX = 0;
+                    let translateZ = 0;
+                    let translateY = 0;
+                    let rotateY = 0;
+                    let opacity = 0;
+                    let scale = 1;
+                    let zIndex = 0;
+                    let filter = 'brightness(1) blur(0px)';
+
+                    if (offset === 0) {
+                        // Active Slide
+                        translateX = 0;
+                        translateZ = 0;
+                        translateY = 0; 
+                        rotateY = 0;
+                        opacity = 1;
+                        scale = 1; 
+                        zIndex = 10;
+                        filter = 'brightness(1) blur(0px)';
+                    } else {
+                        // Dynamically adjust 3D spacing based on screen size
+                        // On mobile, the gap between items is smaller to fit the screen
+                        const baseTranslateX = isMobile ? 95 : 110;
+                        const multiplierX = isMobile ? 25 : 35;
+                        const baseTranslateZ = isMobile ? -120 : -200;
+
+                        translateX = direction * (baseTranslateX + absOffset * multiplierX); 
+                        translateZ = baseTranslateZ * absOffset; 
+                        translateY = 0;
+                        rotateY = -direction * (isMobile ? 15 : 20); // slightly softer angle on mobile
+                        
+                        opacity = 1 - (absOffset * 0.15); 
+                        scale = 1 - (absOffset * 0.05);
+                        zIndex = 5 - absOffset;
+                        
+                        filter = `brightness(${1 - (absOffset * 0.4)}) blur(${absOffset * 2}px)`; 
+
+                        if (absOffset > 3) {
+                            opacity = 0;
+                        }
+                    }
+
+                    // Apply styles
+                    slide.style.transform = `translateX(${translateX}%) translateY(${translateY}%) translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`;
+                    slide.style.opacity = opacity;
+                    slide.style.zIndex = zIndex;
+                    slide.style.filter = filter;
+                });
+            }
+
+            function nextSlide() {
+                currentIndex = (currentIndex + 1) % slides.length;
+                updateSlider();
+            }
+
+            function prevSlide() {
+                currentIndex = (currentIndex - 1 + slides.length) % slides.length;
+                updateSlider();
+            }
+
+            function startAutoplay() {
+                clearInterval(autoplayInterval);
+                autoplayInterval = setInterval(nextSlide, 2500);
+            }
+
+            // --- Click Event Listeners ---
+            document.getElementById('nextBtn').addEventListener('click', () => {
+                nextSlide();
+                startAutoplay(); 
+            });
+
+            document.getElementById('prevBtn').addEventListener('click', () => {
+                prevSlide();
+                startAutoplay(); 
+            });
+
+            slides.forEach((slide, index) => {
+                slide.addEventListener('click', () => {
+                    if (currentIndex !== index) {
+                        currentIndex = index;
+                        updateSlider();
+                        startAutoplay();
+                    }
+                });
+            });
+
+            // --- Swipe / Touch Event Listeners for Mobile ---
+            let touchStartX = 0;
+            let touchEndX = 0;
+            const scene = document.querySelector('.scene');
+
+            scene.addEventListener('touchstart', e => {
+                touchStartX = e.changedTouches[0].screenX;
+                clearInterval(autoplayInterval); // pause autoplay while interacting
+            }, { passive: true });
+
+            scene.addEventListener('touchend', e => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+                startAutoplay(); // resume autoplay
+            }, { passive: true });
+
+            function handleSwipe() {
+                const swipeThreshold = 40; // minimum pixels needed to trigger a swipe
+                if (touchEndX < touchStartX - swipeThreshold) {
+                    nextSlide(); // Swiped Left
+                }
+                if (touchEndX > touchStartX + swipeThreshold) {
+                    prevSlide(); // Swiped Right
+                }
+            }
+
+            // Recalculate 3D positions if user rotates their phone/resizes window
+            window.addEventListener('resize', updateSlider);
+
+            // Initialize
+            updateSlider();
+            startAutoplay();
+        });
+    </script>
+</body>
+</html>
