@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en" style="">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Map Coordinator - Pro Suite</title>
+
+    <!-- Leaflet CSS and JS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+
+    <!-- GeoSearch -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch@3.11.0/dist/geosearch.css" />
+    <script src="https://unpkg.com/leaflet-geosearch@3.11.0/dist/bundle.min.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --sidebar-bg: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+        }
+
+        html,
+        body {
+            height: 100%;
+            height: 100dvh;
+            /* Native mobile viewport height */
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #68736b;
+            color: var(--text);
+            overflow: hidden;
+            /* Prevent body scrolling, let internal containers scroll */
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #map {
+            flex-grow: 1;
+            height: 100%;
+            cursor: crosshair;
+            z-index: 1;
+        }
+
+        .sidebar {
+            width: 420px;
+            background: var(--sidebar-bg);
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .sidebar-content {
+            padding: 24px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            /* Smooth scroll on iOS */
+            flex-grow: 1;
+        }
+
+        /* Tabs Styling */
+        .tabs {
+            display: flex;
+            background: #f1f5f9;
+            padding: 4px;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 10px 4px;
+            border: none;
+            background: transparent;
+            color: var(--text-light);
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        h2 {
+            margin: 0 0 16px 0;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .instructions {
+            background-color: var(--primary-light);
+            color: #1e40af;
+            padding: 14px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            border-left: 4px solid var(--primary);
+        }
+
+        .single-input-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 12px;
+        }
+
+        .point-id {
+            background: #f1f5f9;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-weight: 700;
+            color: var(--text-light);
+            font-size: 0.8rem;
+        }
+
+        .single-input-row input {
+            flex-grow: 1;
+            padding: 12px;
+            /* Larger tap target */
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 16px;
+            /* 16px prevents iOS auto-zoom */
+            font-family: monospace;
+        }
+
+        /* Shared Icon Selector Styles */
+        #shared-icon-selector {
+            display: none;
+            margin: 15px 0;
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .icon-options {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 8px;
+        }
+
+        .icon-opt {
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            transition: transform 0.1s;
+        }
+
+        .icon-opt:hover {
+            transform: scale(1.1);
+        }
+
+        .icon-opt input {
+            display: none;
+        }
+
+        .icon-opt span {
+            font-size: 1.5rem;
+            padding: 4px;
+            border-radius: 6px;
+            border: 2px solid transparent;
+        }
+
+        .icon-opt input:checked+span {
+            background: white;
+            border-color: var(--primary);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-success {
+            width: 100%;
+            padding: 12px;
+            background: var(--success);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: opacity 0.2s;
+        }
+
+        .btn-success:hover {
+            opacity: 0.9;
+        }
+
+        .status-message {
+            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            display: none;
+            line-height: 1.4;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+            display: block;
+            border: 1px solid #fecaca;
+        }
+
+        .status-warning {
+            background: #fef3c7;
+            color: #92400e;
+            display: block;
+            border: 1px solid #fde68a;
+        }
+
+        .status-success {
+            background: #dcfce7;
+            color: #166534;
+            display: block;
+            border: 1px solid #bbf7d0;
+        }
+
+        .area-display {
+            background: #f1f5f9;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .area-value {
+            color: var(--primary);
+            font-family: monospace;
+        }
+
+        .area-value.too-big {
+            color: var(--danger);
+        }
+
+        #naming-section {
+            display: none;
+            background: #f0fdf4;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #dcfce7;
+            margin-bottom: 20px;
+        }
+
+        .naming-label {
+            font-weight: 700;
+            color: #166534;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            display: block;
+        }
+
+        .naming-tips {
+            margin-top: 12px;
+            background: #ffffff;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--text-light);
+            border: 1px dashed #bbf7d0;
+        }
+
+        .naming-tips ul {
+            margin: 5px 0 0 15px;
+            padding: 0;
+        }
+
+        #coordinates-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .coord-item {
+            padding: 8px 12px;
+            background: #f8fafc;
+            border: 1px solid #f1f5f9;
+            margin-bottom: 4px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .point-tag {
+            background: var(--primary);
+            color: white;
+            padding: 0 6px;
+            border-radius: 4px;
+            margin-right: 8px;
+        }
+
+        .actions {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .action-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        #reset-button {
+            flex: 2;
+            padding: 12px;
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        #reset-button:hover {
+            opacity: 0.9;
+        }
+
+        #close-button {
+            flex: 1;
+            padding: 12px;
+            background: var(--text-light);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        #close-button:hover {
+            opacity: 0.9;
+        }
+
+        #instructions-button {
+            width: 100%;
+            padding: 10px;
+            background: var(--primary-light);
+            color: var(--primary);
+            border: 1px dashed var(--primary);
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        #instructions-button:hover {
+            background: #dbeafe;
+        }
+
+        /* Modal Tutorial Styles - Updated for better responsiveness */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 16px;
+            max-width: 420px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-height: 90dvh;
+            overflow-y: auto; /* Ensures content scrolls on extremely small screens */
+        }
+
+        .modal-content h3 {
+            margin-top: 0;
+            color: var(--primary);
+            font-size: 1.4rem;
+            margin-bottom: 12px;
+        }
+
+        .modal-subtitle {
+            color: var(--text-light);
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .modal-note {
+            color: var(--danger);
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: #fee2e2;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #fecaca;
+        }
+
+        .modal-step {
+            display: flex;
+            align-items: flex-start;
+            text-align: left;
+            margin-bottom: 14px;
+            gap: 12px;
+        }
+
+        .step-num {
+            background: var(--primary-light);
+            color: var(--primary);
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+            font-size: 0.85rem;
+        }
+
+        .step-text {
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: var(--text);
+        }
+
+        .modal-close-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+            width: 100%;
+            font-size: 1rem;
+        }
+
+        /* Confirm Modal specific tweaks */
+        .modal-actions-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-actions-row button {
+            margin-top: 0;
+            flex: 1;
+        }
+
+        .warning-box {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            border: 1px solid #fecaca;
+            text-align: left;
+            line-height: 1.4;
+        }
+
+        .leaflet-control-attribution {
+            display: none !important;
+        }
+
+        /* Custom Emoji Icon Class */
+        .custom-emoji-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
+        }
+
+        /* Loading Spinner */
+        .loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid var(--primary);
+            border-radius: 50%;
+            width: 14px;
+            height: 14px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+
+        #area-name-input {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            border: 1px solid #bbf7d0;
+            border-radius: 6px;
+            font-size: 16px;
+            /* Prevents iOS Zoom */
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Choice Selector Styling & Animation */
+        .choice-container {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .choice-container.error-focus {
+            border-color: var(--danger);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+            animation: shake 0.4s ease-in-out;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-6px);
+            }
+
+            75% {
+                transform: translateX(6px);
+            }
+        }
+
+        .choice-title {
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--text);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .choice-options {
+            display: flex;
+            gap: 10px;
+        }
+
+        .choice-chip {
+            flex: 1;
+            position: relative;
+        }
+
+        .choice-chip input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+
+        .choice-chip label {
+            display: block;
+            padding: 10px 8px;
+            text-align: center;
+            background: #f1f5f9;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .choice-chip input:checked+label {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Responsive Mobile Layout */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            #map {
+                flex-grow: 1;
+                /* Map takes remaining vertical space */
+                height: auto;
+                min-height: 40dvh;
+                /* Ensure map is at least 40% of screen */
+            }
+
+            .sidebar {
+                width: 100%;
+                min-width: 100%;
+                height: 55dvh;
+                /* Fixed percentage for bottom sheet */
+                border-top-left-radius: 16px;
+                border-top-right-radius: 16px;
+                box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+                margin-top: -10px;
+                /* Overlap map slightly for bottom-sheet feel */
+                z-index: 1000;
+            }
+
+            .sidebar-content {
+                padding: 20px 16px;
+            }
+
+            .actions {
+                padding: 12px 16px 20px 16px;
+                /* Extra bottom padding for mobile safe area */
+            }
+
+            /* Move geosearch slightly so it doesn't get covered by mobile UI */
+            .leaflet-top.leaflet-left {
+                margin-top: 10px;
+            }
+
+            /* Optimized Modal layout for Mobile Screens */
+            .modal-content {
+                padding: 16px 14px;
+                width: 95%;
+                max-height: 95dvh;
+                border-radius: 12px;
+            }
+            .modal-content h3 {
+                font-size: 1.2rem;
+                margin-bottom: 8px;
+            }
+            .modal-subtitle {
+                font-size: 0.85rem;
+                margin-bottom: 10px;
+            }
+            .modal-note {
+                font-size: 0.75rem;
+                margin-bottom: 14px;
+                padding: 6px;
+            }
+            .modal-step {
+                margin-bottom: 10px;
+                gap: 8px;
+            }
+            .step-num {
+                width: 22px;
+                height: 22px;
+                font-size: 0.75rem;
+            }
+            .step-text {
+                font-size: 0.8rem;
+                line-height: 1.3;
+            }
+            .modal-close-btn {
+                padding: 10px 16px;
+                margin-top: 6px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<!-- Keeping your original body transforms, though they can cause issues -->
+<body style="transform:scale(0.9,0.9) translateY(-20px);overflow-y:scroll;scroll-behaviour:smooth">
+
+    <!-- Tutorial Modal -->
+    <div id="tutorial-modal" class="modal-overlay">
+        <!-- Removed inline transform styles and updated class usage -->
+        <div class="modal-content">
+            <h3>Welcome to Blinkbag's Map-Picker</h3>
+            <p class="modal-subtitle">Follow these steps to map your Target area For Auto-playing Ads:</p>
+            <p class="modal-note">Note: Ads Playing Might be delayed even if location Matched due to Bad weather or Network Condition.</p>
+
+            <div class="modal-step">
+                <div class="step-num">1</div>
+                <div class="step-text"><strong>Plot Points:</strong> Click 4 different locations in rectangular formation on the map to define your km² Area.</div>
+            </div>
+
+            <div class="modal-step">
+                <div class="step-num">2</div>
+                <div class="step-text"><strong>Name Area:</strong> Carefully Enter the Area Name So That We Can Properly Assign Your Ad Geo Targetting. System will also help in auto-suggesting Street Name.</div>
+            </div>
+            
+            <div class="modal-step">
+                <div class="step-num">3</div>
+                <div class="step-text"><strong>Warning:</strong> Before Finalizing Review Your Selection. You can reset and start selecting Again. After Finalizing you wont be able to change GeoTargetting Points before 25 days.</div>
+            </div>
+            
+            <div class="modal-step">
+                <div class="step-num">4</div>
+                <div class="step-text"><strong>Finalize:</strong> After Reviewing Your Area, click "Finalize Area" to save your mapping and Continue towards Upload Ad Section.</div>
+            </div>
+
+            <button class="modal-close-btn" onclick="closeTutorial()">Got it, let's go!</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Confirm Modal -->
+        <div id="confirm-modal" class="modal-overlay">
+            <!-- Removed inline transform styles -->
+            <div class="modal-content">
+                <h3 style="color: var(--text);">Confirm Selection</h3>
+                <p class="modal-subtitle" style="font-weight: 600;">Are you sure you want to finalize this Geo-Target area?</p>
+
+                <div class="warning-box">
+                    <strong>Important Guidance:</strong> You will only be able to set a new geolocation after 10 days from today to meet our ad showing guidelines.
+                </div>
+
+                <div class="modal-actions-row">
+                    <button class="modal-close-btn" style="background: var(--text-light);" onclick="cancelFinalize()">Cancel</button>
+                    <button class="modal-close-btn" style="background: var(--success);" onclick="confirmFinalize()">Yes, Finalize</button>
+                </div>
+            </div>
+        </div>
+        <div id="map"></div>
+        <div class="sidebar" style="z-index:2;">
+            <div class="tabs" style="visibility: hidden;">
+                <button class="tab-btn active" onclick="switchTab('draw')">Click Draw</button>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- Tab: Draw -->
+                <div id="tab-draw" class="tab-content active">
+                    <h2>Define Your Geo Target Location To Show this New Ad </h2>
+                    <div class="instructions">
+                        Click 4 locations on the map to define your boundary.Area Should Not Exceed 1 km².
+                    </div>
+                </div>
+
+                <!-- Shared Icon Selector (Visible for Multi Points and Single Point) -->
+                <div id="shared-icon-selector">
+                    <label class="naming-label">Select Marker Icon:</label>
+                    <div class="icon-options">
+                        <label class="icon-opt"><input type="radio" name="marker-icon" value="📍" checked>
+                            <span>📍</span></label>
+                        <label class="icon-opt"><input type="radio" name="marker-icon" value="🚴">
+                            <span>🚴</span></label>
+                        <label class="icon-opt"><input type="radio" name="marker-icon" value="🚶">
+                            <span>🚶</span></label>
+                        <label class="icon-opt"><input type="radio" name="marker-icon" value="🐕">
+                            <span>🐕</span></label>
+                        <label class="icon-opt"><input type="radio" name="marker-icon" value="📦">
+                            <span>📦</span></label>
+                    </div>
+                </div>
+
+                <!-- Shared Components -->
+                <div id="status" class="status-message"></div>
+
+                <div id="area-ui-container">
+                    <div class="area-display">
+                        <span>Calculated Area:</span>
+                        <span id="area-val" class="area-value">0.00 km²</span>
+                    </div>
+
+                    <div id="naming-section">
+                        <div class="choice-container">
+                            <span class="choice-title">Is this chosen area your own address?</span>
+                            <div class="choice-options">
+                                <div class="choice-chip">
+                                    <input type="radio" id="type-own" name="addr-choice" value="own">
+                                    <label for="type-own">Own Address</label>
+                                </div>
+                                <div class="choice-chip">
+                                    <input type="radio" id="type-other" name="addr-choice" value="other">
+                                    <label for="type-other">Different Location</label>
+                                </div>
+                            </div>
+                        </div>
+                        <label class="naming-label">
+                            Assign Area Name:
+                            <span id="loading-name" style="display: none;">
+                                <div class="loader"></div>
+                            </span>
+                        </label>
+
+                        <!-- Auto-suggested street name helper -->
+                        <div id="suggestion-box"
+                            style="display: none; font-size: 0.8rem; background: #fff; padding: 6px 10px; border-radius: 6px; border: 1px solid #bbf7d0; margin-bottom: 10px; color: #166534;">
+                            <span style="font-weight: bold;">Suggested Street Name:</span><br>
+                            <span id="suggested-street-display">...</span>
+                        </div>
+
+                        <input type="text" id="area-name-input" placeholder="Type name here...">
+
+                        <div class="naming-tips">
+                            <strong>💡 Recommendations:Should Appear under the Selected Area</strong>
+                            <ul>
+                                <li>Add Street Name & famous Landmarks name</li>
+                                <li>Hotel,Nearby Restaurant or Junctions </li>
+                                <li>Local Parks or Famous Buildings (optional) </li>
+                            </ul>
+                        </div>
+
+                        <button class="btn-success" id="finalize-btn" onclick="validateAndShowConfirm()">Finalize Area</button>
+                    </div>
+                </div>
+
+                <div id="data-section">
+                    <h3 style="font-size: 0.9rem; color: var(--text-light); margin-top: 20px;">Points Data:</h3>
+                    <div id="coordinates-list"></div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button id="instructions-button" onclick="openTutorial()">📖 View Instructions</button>
+                <div class="action-row">
+                    <button id="reset-button" onclick="resetAll()">Reset Data</button>
+                    <button id="close-button" onclick="closeMap()">Close</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const SINGLE_POINT_NAME = "Main Target Location";
+        const AREA_LIMIT_KM2 = 1.0;
+        let setOn = '-'
+        let clickedPoints = [];
+        let markers = [];
+        let polygon = null;
+        let activeTab = 'draw';
+
+        const provider = new window.GeoSearch.OpenStreetMapProvider();
+        const searchControl = new window.GeoSearch.GeoSearchControl({
+            provider: provider,
+            style: 'bar',
+            showMarker: true,
+            autoClose: true,
+            keepResult: true
+        });
+
+        const map = L.map('map', {
+            center: [55.944381, -3.187143],
+            zoom: 13,
+            zoomControl: false,
+            attributionControl: false,
+            tap: true
+        });
+
+        L.control.zoom({ position: 'topright' }).addTo(map);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        map.addControl(searchControl);
+
+        const statusEl = document.getElementById('status');
+        const areaValEl = document.getElementById('area-val');
+        const namingSection = document.getElementById('naming-section');
+        const areaUI = document.getElementById('area-ui-container');
+        const coordinatesList = document.getElementById('coordinates-list');
+        const iconSelector = document.getElementById('shared-icon-selector');
+        const tutorialModal = document.getElementById('tutorial-modal');
+        const areaNameInput = document.getElementById('area-name-input');
+        const loadingIndicator = document.getElementById('loading-name');
+        const suggestionBox = document.getElementById('suggestion-box');
+        const suggestedStreetDisplay = document.getElementById('suggested-street-display');
+
+        // Show tutorial on load
+        window.onload = function () {
+            tutorialModal.style.display = 'flex';
+        };
+
+        function openTutorial() { document.getElementById('tutorial-modal').style.display = 'flex'; }
+        function closeTutorial() { document.getElementById('tutorial-modal').style.display = 'none'; }
+        function closeMap() { window.parent.postMessage(JSON.stringify({ action: "closeMap" }), "https://www.blinkbag.com"); }
+
+        async function suggestAreaName(points) {
+            if (points.length < 4) return;
+
+            // Calculate center of polygon
+            let latSum = 0, lngSum = 0;
+            points.forEach(p => { latSum += p.lat; lngSum += p.lng; });
+            const centerLat = latSum / points.length;
+            const centerLng = lngSum / points.length;
+
+            loadingIndicator.style.display = 'inline-block';
+            suggestedStreetDisplay.textContent = "Searching...";
+
+            try {
+                // Reverse Geocoding via Nominatim
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${centerLat}&lon=${centerLng}`);
+                const data = await response.json();
+
+                if (data && data.address) {
+                    const addr = data.address;
+                    // Prioritize road/street name
+                    const streetName = addr.road || addr.pedestrian || addr.cycleway || addr.path || addr.suburb || addr.neighbourhood || "Point near (" + centerLat.toFixed(3) + ")";
+                    suggestedStreetDisplay.textContent = streetName;
+                    suggestionBox.style.display = 'block';
+                } else {
+                    suggestedStreetDisplay.textContent = "No specific street name found.";
+                    suggestionBox.style.display = 'block';
+                }
+            } catch (err) {
+                console.error("Geocoding failed", err);
+                suggestionBox.style.display = 'none';
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        function finalizeArea() {
+            const areaName = areaNameInput.value.trim();
+            const addrChoiceElement = document.querySelector('input[name="addr-choice"]:checked');
+            const choiceContainer = document.querySelector('.choice-container');
+
+            // Check if the user forgot to select an option
+            if (!addrChoiceElement) {
+                showStatus("Please select if this is your own address or a different location.");
+
+                // Add visual shake focus and scroll to it
+                choiceContainer.classList.add('error-focus');
+                choiceContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                setTimeout(() => {
+                    choiceContainer.classList.remove('error-focus');
+                }, 2000);
+
+                return;
+            }
+
+            const addrChoice = addrChoiceElement.value;
+
+            if (!areaName) {
+                showStatus("Please provide a name for this area before finalizing.");
+                areaNameInput.focus();
+                return;
+            }
+
+            const area = calculateArea(clickedPoints);
+            if (area > AREA_LIMIT_KM2) {
+                showStatus("Area is still too large. Please refine points.");
+                return;
+            }
+
+            showStatus(`Area "${areaName}" finalized successfully!`, "success");
+            if (polygon) {
+                polygon.setStyle({ color: '#059669', fillColor: '#10b981', fillOpacity: 0.4 });
+            }
+            console.log("Chu:", addrChoice)
+
+            window.parent.postMessage(JSON.stringify({
+                area: areaName,
+                preferLoc: addrChoice,
+                points: clickedPoints,
+                status: "activated",
+                setOn: setOn
+
+            }), "https://www.blinkbag.com");
+        }
+        
+        // STEP 1: Validate form, then show Confirm Modal
+        function validateAndShowConfirm() {
+            const name = areaNameInput.value.trim();
+            const addrChoiceElement = document.querySelector('input[name="addr-choice"]:checked');
+            const choiceContainer = document.querySelector('.choice-container');
+            
+            // Check Choice
+            if (!addrChoiceElement) { 
+                showStatus("Please select if this is your own address or a different location."); 
+                choiceContainer.classList.add('error-focus');
+                choiceContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => choiceContainer.classList.remove('error-focus'), 2000);
+                return; 
+            }
+            
+            // Check Name
+            if (!name) { 
+                showStatus("Please provide a name for this area before finalizing."); 
+                areaNameInput.focus();
+                return; 
+            }
+            
+            // Check Area Limits
+            if (calculateArea(clickedPoints) > AREA_LIMIT_KM2) { 
+                showStatus("Area exceeds 1.00 km² limit."); 
+                return; 
+            }
+
+            // Everything is valid -> Show the confirm dialog
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
+
+        // STEP 2A: Cancel the finalization
+        function cancelFinalize() {
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+
+        // STEP 2B: Confirm and execute Finalization
+        function confirmFinalize() {
+            document.getElementById('confirm-modal').style.display = 'none'; // Close modal
+
+            const areaName = areaNameInput.value.trim();
+            const addrChoice = document.querySelector('input[name="addr-choice"]:checked').value;
+
+            showStatus(`Area "${areaName}" finalized successfully!`, "success");
+            if (polygon) polygon.setStyle({ color: '#059669', fillColor: '#10b981', fillOpacity: 0.4 });
+
+            // Post data to main Blinkbag site
+            console.log("Chu:", addrChoice)
+           
+            window.parent.postMessage(JSON.stringify({
+                area: areaName,
+                preferLoc: addrChoice,
+                points: clickedPoints,
+                status: "activated",
+                setOn: setOn
+
+            }), "https://www.blinkbag.com");
+        }
+       
+       
+        function switchTab(tabId) {
+            resetAll();
+            activeTab = tabId;
+
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            const activeBtn = document.querySelector(`.tab-btn[onclick="switchTab('${tabId}')"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+
+            areaUI.style.display = (tabId === 'points' || tabId === 'single') ? 'none' : 'block';
+            iconSelector.style.display = (tabId === 'points' || tabId === 'single') ? 'block' : 'none';
+        }
+
+        function showStatus(msg, type = 'error') {
+            statusEl.textContent = msg;
+            statusEl.className = `status-message status-${type}`;
+            if (type !== 'warning' && type !== 'success') {
+                setTimeout(() => { if (statusEl.className.includes(`status-${type}`)) statusEl.className = 'status-message'; }, 4000);
+            }
+        }
+
+        function calculateArea(points) {
+            if (points.length < 3) return 0;
+            let area = 0;
+            const RADIUS = 6378137;
+            for (let i = 0; i < points.length; i++) {
+                let p1 = points[i];
+                let p2 = points[(i + 1) % points.length];
+                area += (p2.lng - p1.lng) * Math.PI / 180 * (2 + Math.sin(p1.lat * Math.PI / 180) + Math.sin(p2.lat * Math.PI / 180));
+            }
+            area = area * RADIUS * RADIUS / 2.0;
+            return Math.abs(area) / 1000000;
+        }
+
+        function updateUI() {
+            if (activeTab === 'draw' || activeTab === 'manual') {
+                const area = calculateArea(clickedPoints);
+                areaValEl.textContent = `${area.toFixed(2)} km²`;
+
+                const isTooBig = area > AREA_LIMIT_KM2;
+                if (isTooBig) {
+                    areaValEl.classList.add('too-big');
+                    showStatus("⚠️ Area is too large! Please select a smaller fraction within the town.", "warning");
+                    if (polygon) polygon.setStyle({ color: 'red', fillColor: 'red' });
+                    namingSection.style.display = 'none';
+                } else {
+                    areaValEl.classList.remove('too-big');
+                    if (polygon) polygon.setStyle({ color: '#2563eb', fillColor: '#3b82f6' });
+                    if (statusEl.className.includes('status-warning')) statusEl.className = 'status-message';
+
+                    if (clickedPoints.length === 4) {
+                        namingSection.style.display = 'block';
+                        setTimeout(() => {
+                            document.querySelector('.sidebar-content').scrollTo({
+                                top: namingSection.offsetTop,
+                                behavior: 'smooth'
+                            });
+                        }, 200);
+                        suggestAreaName(clickedPoints);
+                    }
+                }
+            }
+
+            if (activeTab === 'draw' || activeTab === 'manual') {
+                coordinatesList.innerHTML = '';
+                clickedPoints.forEach((p, idx) => {
+                    const label = String.fromCharCode(65 + idx);
+                    addToListUI(label, p.lat, p.lng);
+                });
+            }
+        }
+
+        function addToListUI(label, lat, lng) {
+            console.log(lat, lng)
+            const div = document.createElement('div');
+            div.className = 'coord-item';
+            div.innerHTML = `<span><span class="point-tag">${label}</span> ${lat.toFixed(5)}, ${lng.toFixed(5)}</span>`;
+            coordinatesList.appendChild(div);
+        }
+
+        function getMarkerIcon() {
+            const selectedEmoji = document.querySelector('input[name="marker-icon"]:checked').value;
+            return L.divIcon({
+                html: `<div style="font-size: 24px;">${selectedEmoji}</div>`,
+                className: 'custom-emoji-icon',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+        }
+
+        function addPoint(latlng) {
+            if (clickedPoints.length >= 4) return;
+
+            const label = String.fromCharCode(65 + clickedPoints.length);
+            const marker = L.marker(latlng).addTo(map);
+            marker.bindTooltip(label, { permanent: true, direction: 'top' });
+            markers.push(marker);
+            clickedPoints.push(latlng);
+
+            if (clickedPoints.length === 4) drawPolygon();
+            updateUI();
+        }
+
+        function drawPolygon() {
+            if (polygon) map.removeLayer(polygon);
+            polygon = L.polygon(clickedPoints, { weight: 3 }).addTo(map);
+            map.fitBounds(polygon.getBounds(), { padding: [40, 40] });
+        }
+
+        function parseCoordString(str) {
+            if (!str) return null;
+            const parts = str.split(',').map(s => parseFloat(s.trim()));
+            if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+                return { lat: parts[0], lng: parts[1] };
+            }
+            return null;
+        }
+
+        function processManualPolygon() {
+            const tempPoints = [];
+            const ids = ['A', 'B', 'C', 'D'];
+
+            for (let id of ids) {
+                const val = document.getElementById(`coord-${id}`).value;
+                const latlng = parseCoordString(val);
+                if (!latlng) {
+                    showStatus(`Point ${id} is invalid. Use 'lat, long' format.`);
+                    return;
+                }
+                tempPoints.push(latlng);
+            }
+
+            resetAll();
+            tempPoints.forEach(p => addPoint(p));
+        }
+
+        function processManualMarker() {
+            const val = document.getElementById('marker-coord').value;
+            const latlng = parseCoordString(val);
+
+            if (!latlng) {
+                showStatus("Please enter valid 'lat, long' coordinates.");
+                return;
+            }
+
+            const icon = getMarkerIcon();
+            const marker = L.marker(latlng, { icon: icon }).addTo(map);
+            const label = markers.length + 1;
+            const emoji = document.querySelector('input[name="marker-icon"]:checked').value;
+
+            marker.bindPopup(`${emoji} Marker ${label}: ${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`).openPopup();
+            markers.push(marker);
+
+            addToListUI('#' + label, latlng.lat, latlng.lng);
+
+            map.panTo(latlng);
+            document.getElementById('marker-coord').value = '';
+        }
+
+        function processSingleMarker() {
+            const val = document.getElementById('single-marker-coord').value;
+            const latlng = parseCoordString(val);
+
+            if (!latlng) {
+                showStatus("Enter coordinates in 'lat, long' format.");
+                return;
+            }
+
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            coordinatesList.innerHTML = '';
+
+            const icon = getMarkerIcon();
+            const emoji = document.querySelector('input[name="marker-icon"]:checked').value;
+            const marker = L.marker(latlng, { icon: icon }).addTo(map);
+
+            marker.bindPopup(`<strong>${SINGLE_POINT_NAME}</strong><br>${emoji} ${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`).openPopup();
+            markers.push(marker);
+
+            addToListUI('TARGET', latlng.lat, latlng.lng);
+
+            map.setView(latlng, 18);
+        }
+
+        map.on('click', function (e) {
+            if (activeTab === 'draw') {
+                if (clickedPoints.length >= 4) {
+                    showStatus("Maximum 4 points reached for polygon.");
+                    return;
+                }
+                addPoint(e.latlng);
+            } else if (activeTab === 'points') {
+                const icon = getMarkerIcon();
+                const marker = L.marker(e.latlng, { icon: icon }).addTo(map);
+                const label = markers.length + 1;
+                const emoji = document.querySelector('input[name="marker-icon"]:checked').value;
+
+                marker.bindPopup(`${emoji} Marker ${label}: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`).openPopup();
+                markers.push(marker);
+
+                addToListUI('#' + label, e.latlng.lat, e.latlng.lng);
+                map.panTo(e.latlng);
+            } else if (activeTab === 'single') {
+                showStatus("Manual input required for Single Point placement.", "warning");
+            }
+        });
+
+        function resetAll() {
+            if (polygon) map.removeLayer(polygon);
+            polygon = null;
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+            clickedPoints = [];
+            coordinatesList.innerHTML = '';
+            statusEl.className = 'status-message';
+            if (areaValEl) areaValEl.textContent = "0.00 km²";
+            namingSection.style.display = 'none';
+            suggestionBox.style.display = 'none';
+            const inputs = document.querySelectorAll('.sidebar-content input:not([type="radio"])');
+            inputs.forEach(input => input.value = '');
+            loadingIndicator.style.display = 'none';
+            document.querySelectorAll('input[name="addr-choice"]').forEach(rb => rb.checked = false);
+        }
+        window.onmessage = (event) => {
+            // Access the data sent from Wix
+            setOn = event.data;
+
+        };
+        map.locate({ setView: true, maxZoom: 13 });
+    </script>
+</body>
+
+</html>
